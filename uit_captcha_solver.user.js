@@ -3,7 +3,6 @@
 // @namespace    http://tampermonkey.net/
 // @version      1.1
 // @description  Tự động điền captcha cho student.uit.edu.vn từ thuộc tính alt của ảnh captcha
-// @author       Antigravity
 // @match        https://student.uit.edu.vn/*
 // @grant        none
 // @run-at       document-end
