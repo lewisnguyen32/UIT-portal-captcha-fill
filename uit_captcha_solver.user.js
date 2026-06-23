@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         UIT Auto Fill & Auto Login Captcha
 // @namespace    http://tampermonkey.net/
-// @version      1.3
-// @description  Tự động điền captcha và tự động đăng nhập cho student.uit.edu.vn (có nút bật/tắt & tính năng chống lặp vô hạn)
+// @version      1.4
+// @description  Tự động điền captcha và tự động đăng nhập cho student.uit.edu.vn (xác định chính xác form đăng nhập, tránh bấm nhầm form tìm kiếm)
 // @match        https://student.uit.edu.vn/*
 // @grant        none
 // @run-at       document-end
@@ -47,9 +47,9 @@
         console.warn('[UIT Captcha Solver] Phát hiện nguy cơ lặp vô hạn! Đã tự động tắt tính năng Tự động đăng nhập.');
     }
 
-    function setupCredentialListeners() {
-        const usernameInput = document.querySelector('input[name="name"]') || document.getElementById('edit-name');
-        const passwordInput = document.querySelector('input[name="pass"]') || document.getElementById('edit-pass');
+    function setupCredentialListeners(form) {
+        const usernameInput = form.querySelector('input[name="name"]') || form.querySelector('input[type="text"]:not([id*="captcha"])');
+        const passwordInput = form.querySelector('input[name="pass"]') || form.querySelector('input[type="password"]');
         
         if (usernameInput && !usernameInput.dataset.listenerAdded) {
             usernameInput.addEventListener('input', solveCaptcha);
@@ -63,12 +63,10 @@
         }
     }
 
-    function insertToggleCheckbox() {
+    function insertToggleCheckbox(form) {
         if (document.getElementById('auto-login-toggle-container')) return;
 
-        const submitBtn = document.getElementById('edit-submit') || 
-                          document.querySelector('input[type="submit"][value="Đăng nhập"]') ||
-                          document.querySelector('input[type="submit"]');
+        const submitBtn = form.querySelector('input[type="submit"]') || form.querySelector('button[type="submit"]');
         
         if (submitBtn) {
             const container = document.createElement('div');
@@ -127,8 +125,12 @@
         const captchaInput = document.getElementById('edit-english-captcha-answer');
 
         if (captchaImg && captchaInput) {
-            setupCredentialListeners();
-            insertToggleCheckbox();
+            // Xác định chính xác form chứa ô nhập captcha (chính là form đăng nhập)
+            const form = captchaInput.closest('form');
+            if (!form) return;
+
+            setupCredentialListeners(form);
+            insertToggleCheckbox(form);
 
             const altText = captchaImg.getAttribute('alt') || '';
             const match = altText.match(/^captcha:(.+)$/);
@@ -148,8 +150,8 @@
 
                 const autoLoginEnabled = localStorage.getItem('uit_auto_login') !== 'false';
                 if (autoLoginEnabled && captchaFilled) {
-                    const usernameInput = document.querySelector('input[name="name"]') || document.getElementById('edit-name');
-                    const passwordInput = document.querySelector('input[name="pass"]') || document.getElementById('edit-pass');
+                    const usernameInput = form.querySelector('input[name="name"]') || form.querySelector('input[type="text"]:not([id*="captcha"])');
+                    const passwordInput = form.querySelector('input[name="pass"]') || form.querySelector('input[type="password"]');
                     
                     const hasCredentials = usernameInput && usernameInput.value.trim() !== '' &&
                                            passwordInput && passwordInput.value.trim() !== '';
@@ -159,9 +161,8 @@
                         submitTimeout = setTimeout(() => {
                             if (hasSubmitted) return;
 
-                            const loginButton = document.getElementById('edit-submit') || 
-                                                document.querySelector('input[type="submit"][value="Đăng nhập"]') ||
-                                                document.querySelector('input[type="submit"]');
+                            // Tìm nút submit CHỈ trong form đăng nhập hiện tại
+                            const loginButton = form.querySelector('input[type="submit"]') || form.querySelector('button[type="submit"]');
                             if (loginButton) {
                                 // Tăng số lần thử đăng nhập và lưu thời gian thử
                                 sessionStorage.setItem('uit_login_attempts', (attempts + 1).toString());
